@@ -443,7 +443,7 @@ def install_mod(
 
         if (tmp_dir / "patches").exists() and not util.get_settings("no_cemu"):
             patch_dir = (
-                util.get_cemu_dir()
+                util.get_cemu_data_dir()
                 / "graphicPacks"
                 / f"bcmlPatches"
                 / util.get_safe_pathname(rules["name"])
@@ -580,7 +580,7 @@ def uninstall_mod(mod: BcmlMod, wait_merge: bool = False):
 
     if has_patches and not util.get_settings("no_cemu"):
         shutil.rmtree(
-            util.get_cemu_dir()
+            util.get_cemu_data_dir()
             / "graphicPacks"
             / "bcmlPatches"
             / util.get_safe_pathname(mod.name),
@@ -695,14 +695,14 @@ def enable_bcml_gfx():
 
     create_entry("graphicPacks\\BreathOfTheWild_BCML\\rules.txt")
 
-    if (util.get_cemu_dir() / "graphicPacks" / "bcmlPatches").exists():
-        for rules in (util.get_cemu_dir() / "graphicPacks" / "bcmlPatches").rglob(
+    if (util.get_cemu_data_dir() / "graphicPacks" / "bcmlPatches").exists():
+        for rules in (util.get_cemu_data_dir() / "graphicPacks" / "bcmlPatches").rglob(
             "rules.txt"
         ):
-            create_entry(str(rules.relative_to(util.get_cemu_dir())))
+            create_entry(str(rules.relative_to(util.get_cemu_data_dir())))
 
         settings.writexml(
-            (util.get_cemu_dir() / "settings.xml").open("w", encoding="utf-8"),
+            (util.get_cemu_conf_dir() / "settings.xml").open("w", encoding="utf-8"),
             addindent="    ",
             newl="\n",
         )
@@ -733,7 +733,7 @@ def disable_bcml_gfx():
                 if "bcml" in entry.getAttribute("filename").lower():
                     gpack.removeChild(entry)
         settings.writexml(
-            (util.get_cemu_dir() / "settings.xml").open("w", encoding="utf-8"),
+            (util.get_cemu_conf_dir() / "settings.xml").open("w", encoding="utf-8"),
             addindent="    ",
             newl="\n",
         )

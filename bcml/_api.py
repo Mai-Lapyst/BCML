@@ -95,6 +95,18 @@ class Api:
         else:
             return self.window.create_file_dialog(webview.FOLDER_DIALOG)[0]
 
+    def get_file(self):
+        if SYSTEM == "Windows":
+            from tkinter import filedialog
+            from tkinter import Tk
+
+            root = Tk()
+            root.attributes("-alpha", 0.0)
+            file = filedialog.askopenfile(parent=root, filetypes=[('Executable', '*.exe')])
+            return file if file != "" else None
+        else:
+            return self.window.create_file_dialog(webview.OPEN_DIALOG)[0]
+
     def dir_exists(self, params):
         if not params["folder"]:
             return False
@@ -104,6 +116,10 @@ class Api:
             return False
         if params["type"] == "cemu_dir":
             return len(list(path.glob("?emu*.exe"))) > 0
+        if params["type"] == "cemu_conf_dir":
+            return len(list(path.glob("settings.xml"))) > 0
+        if params["type"] == "cemu_data_dir":
+            return len(list(path.glob("graphicPacks"))) > 0
         if "game_dir" in params["type"]:
             return (path / "Pack" / "Dungeon000.pack").exists()
         if params["type"] == "update_dir":
@@ -112,6 +128,19 @@ class Api:
             return (path / "Pack" / "AocMainField.pack").exists()
         if params["type"] == "store_dir":
             return True
+        return True
+
+    def file_exists(self, params):
+        if not params["file"]:
+            return False
+        path = Path(params["file"])
+        real_file = path.exists() and path.is_file() and params["file"] != ""
+        if not real_file:
+            return False
+        if params["type"] == "cemu_exe":
+            import subprocess
+            help_result = subprocess.run([path, '--help'], stdout=subprocess.PIPE)
+            return "Displays the version of Cemu" in help_result.stdout.decode("utf-8")
         return True
 
     def drill_dir(self, params):
@@ -172,6 +201,10 @@ class Api:
             update_dir = util.guess_update_dir(mlc_path, game_dir)
             dlc_dir = util.guess_aoc_dir(mlc_path, game_dir)
             return {
+                "cemu_conf": str(cemu),
+                "cemu_data": str(cemu),
+                "cemu_exe": str(cemu / "Cemu.exe"),
+
                 "game_dir": str(game_dir),
                 "update_dir": str(update_dir) if update_dir else "",
                 "dlc_dir": str(dlc_dir) if dlc_dir else "",
@@ -226,7 +259,7 @@ class Api:
         return len(
             {
                 d
-                for d in (util.get_cemu_dir() / "graphicPacks" / "BCML").glob("*")
+                for d in (util.get_cemu_data_dir() / "graphicPacks" / "BCML").glob("*")
                 if d.is_dir()
             }
         )
@@ -237,7 +270,7 @@ class Api:
 
     @win_or_lose
     def delete_old_mods(self):
-        rmtree(util.get_cemu_dir() / "graphicPacks" / "BCML")
+        rmtree(util.get_cemu_data_dir() / "graphicPacks" / "BCML")
 
     @win_or_lose
     def get_mods(self, params):
@@ -446,7 +479,7 @@ class Api:
             rmtree(folder, onerror=install.force_del)
         if not util.get_settings("no_cemu"):
             shutil.rmtree(
-                util.get_cemu_dir() / "graphicPacks" / "bcmlPatches", ignore_errors=True
+                util.get_cemu_data_dir() / "graphicPacks" / "bcmlPatches", ignore_errors=True
             )
 
     @win_or_lose
@@ -521,22 +554,25 @@ class Api:
     def launch_cemu(self, params=None):
         if not params:
             params = {"run_game": True}
-        cemu = next(
-            iter(
-                {
-                    f
-                    for f in util.get_cemu_dir().glob("*.exe")
-                    if "cemu" in f.name.lower()
-                }
+
+        cemu = util.get_cemu_exe()
+        if not cemu:
+            cemu = next(
+                iter(
+                    {
+                        f
+                        for f in util.get_cemu_data_dir().glob("*.exe")
+                        if "cemu" in f.name.lower()
+                    }
+                )
             )
-        )
         uking = util.get_game_dir().parent / "code" / "U-King.rpx"
         try:
             assert uking.exists()
         except AssertionError:
             raise FileNotFoundError("Your BOTW executable could not be found")
         cemu_args: List[str]
-        if SYSTEM == "Windows":
+        if SYSTEM == "Windows" or not ".exe" in str(cemu):
             cemu_args = [str(cemu)]
             if params["run_game"]:
                 cemu_args.extend(("-g", str(uking)))
@@ -549,7 +585,7 @@ class Api:
                         "Z:\\" + str(uking).replace("/", "\\"),
                     )
                 )
-        Popen(cemu_args, cwd=str(util.get_cemu_dir()))
+        Popen(cemu_args, cwd=str(util.get_cemu_conf_dir()))
 
     @win_or_lose
     @install.refresher
@@ -585,8 +621,8 @@ class Api:
     @win_or_lose
     @install.refresher
     def restore_old_backup(self, params=None):
-        if (util.get_cemu_dir() / "bcml_backups").exists():
-            open_dir = util.get_cemu_dir() / "bcml_backups"
+        if (util.get_cemu_data_dir() / "bcml_backups").exists():
+            open_dir = util.get_cemu_data_dir() / "bcml_backups"
         else:
             open_dir = Path.home()
         try:

@@ -497,7 +497,8 @@ def sanity_check():
     if settings["wiiu"]:
         get_update_dir()
     if not settings["no_cemu"]:
-        get_cemu_dir()
+        get_cemu_data_dir()
+        get_cemu_conf_dir()
 
 
 @lru_cache(1)
@@ -573,8 +574,36 @@ def clear_temp_dir():
             pass
 
 
+def get_default_cemu_portable() -> bool:
+    return system() != "Linux"
+
+
+def get_default_cemu_data_dir() -> str:
+    if system() == "Linux":
+        return str(Path.home() / ".local" / "share" / "cemu")
+    else:
+        return ""
+
+
+def get_default_cemu_conf_dir() -> str:
+    if system() == "Linux":
+        return str(Path.home() / ".config" / "cemu")
+    else:
+        return ""
+
+
+def get_default_cemu_exe() -> str:
+    if system() == "Linux":
+        return "/usr/bin/cemu"
+    else:
+        return ""
+
+
 DEFAULT_SETTINGS = {
-    "cemu_dir": "",
+    "cemu_portable": get_default_cemu_portable(),
+    "cemu_data_dir": get_default_cemu_data_dir(),
+    "cemu_conf_dir": get_default_cemu_conf_dir(),
+    "cemu_exe": get_default_cemu_exe(),
     "game_dir": "",
     "game_dir_nx": "",
     "update_dir": "",
@@ -641,21 +670,42 @@ def save_settings():
         json.dump(get_settings.settings, s_file, indent=2)
 
 
-def get_cemu_dir() -> Path:
-    cemu_dir = str(get_settings("cemu_dir"))
-    if not cemu_dir or not Path(cemu_dir).is_dir():
-        raise FileNotFoundError("The Cemu directory has moved or not been saved yet.")
-    return Path(cemu_dir)
+# def get_cemu_dir() -> Path:
+#     cemu_dir = str(get_settings("cemu_dir"))
+#     if not cemu_dir or not Path(cemu_dir).is_dir():
+#         raise FileNotFoundError("The Cemu directory has moved or not been saved yet.")
+#     return Path(cemu_dir)
 
 
-def set_cemu_dir(path: Path):
-    settings = get_settings()
-    settings["cemu_dir"] = str(path.resolve())
-    save_settings()
+def get_cemu_conf_dir() -> Path:
+    cemu_conf_dir = str(get_settings("cemu_conf_dir"))
+    if not cemu_conf_dir or not Path(cemu_conf_dir).is_dir():
+        raise FileNotFoundError("The Cemu config directory has moved or not been saved yet.")
+    return Path(cemu_conf_dir)
+
+
+def get_cemu_data_dir() -> Path:
+    cemu_data_dir = str(get_settings("cemu_data_dir"))
+    if not cemu_data_dir or not Path(cemu_data_dir).is_dir():
+        raise FileNotFoundError("The Cemu data directory has moved or not been saved yet.")
+    return Path(cemu_data_dir)
+
+
+def get_cemu_exe() -> Path:
+    cemu_exe = str(get_settings("cemu_exe"))
+    if not cemu_exe or not Path(cemu_exe).is_file():
+        return None
+    return Path(cemu_exe)
+
+
+# def set_cemu_dir(path: Path):
+#     settings = get_settings()
+#     settings["cemu_dir"] = str(path.resolve())
+#     save_settings()
 
 
 def parse_cemu_settings(path: Path = None):
-    path = path or get_cemu_dir() / "settings.xml"
+    path = path or get_cemu_conf_dir() / "settings.xml"
     if not path.exists():
         raise FileNotFoundError("The Cemu settings file could not be found.")
     setread = ""

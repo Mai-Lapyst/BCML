@@ -1,6 +1,7 @@
 import { Button, Col, Form, OverlayTrigger, Row, Tooltip } from "react-bootstrap";
 
 import FolderInput from "./Folder.jsx";
+import FileInput from "./File.jsx";
 import React from "react";
 
 class Settings extends React.Component {
@@ -8,6 +9,10 @@ class Settings extends React.Component {
         super();
         this.state = {
             cemu_dir: "",
+            cemu_portable: !window.navigator.platform.includes("inux"),
+            cemu_conf_dir: "",
+            cemu_data_dir: "",
+            cemu_exe: "",
             game_dir: "",
             game_dir_nx: "",
             update_dir: "",
@@ -32,7 +37,7 @@ class Settings extends React.Component {
             strip_gfx: false,
             auto_gb: true,
             show_gb: true,
-            languages: [...Array.from(Object.keys(LANGUAGE_MAP))]
+            languages: [...Array.from(Object.keys(LANGUAGE_MAP))],
         };
         this.formRef = React.createRef();
     }
@@ -56,12 +61,47 @@ class Settings extends React.Component {
                 folder: this.state.update_dir,
                 type: "update_dir"
             }));
-        const cemuValid =
-            this.state.no_cemu ||
-            (await pywebview.api.dir_exists({
-                folder: this.state.cemu_dir,
-                type: "cemu_dir"
-            }));
+
+        console.log("gameValid: ", gameValid);
+        console.log("gameNxValid: ", gameNxValid);
+        console.log("updateValid: ", updateValid);
+
+        let cemuValid = false;
+        if (this.state.cemu_portable) {
+            cemuValid =
+                this.state.no_cemu ||
+                (await pywebview.api.dir_exists({
+                    folder: this.state.cemu_dir,
+                    type: "cemu_dir"
+                }));
+        }
+        else {
+            const cemuConfValid =
+                this.state.no_cemu ||
+                (await pywebview.api.dir_exists({
+                    folder: this.state.cemu_conf_dir,
+                    type: "cemu_conf_dir"
+                }));
+            const cemuDataValid =
+                this.state.no_cemu ||
+                (await pywebview.api.dir_exists({
+                    folder: this.state.cemu_data_dir,
+                    type: "cemu_data_dir"
+                }));
+            const cemuExeValid =
+                this.state.no_cemu ||
+                (await pywebview.api.file_exists({
+                    file: this.state.cemu_exe,
+                    type: "cemu_exe"
+                }));
+            console.log("cemuConfValid: ", cemuConfValid);
+            console.log("cemuDataValid: ", cemuDataValid);
+            console.log("cemuExeValid: ", cemuExeValid);
+            cemuValid = cemuConfValid && cemuDataValid && cemuExeValid;
+        }
+
+        console.log("cemuValid: ", cemuValid);
+
         const dlcValid =
             !this.state.wiiu ||
             this.state.dlc_dir == "" ||
@@ -76,6 +116,16 @@ class Settings extends React.Component {
                 folder: this.state.dlc_dir_nx,
                 type: "dlc_dir"
             }));
+
+        console.log("dlcValid: ", dlcValid);
+        console.log("dlcNxValid: ", dlcNxValid);
+
+        console.log("this.state.lang: ", this.state.lang != "");
+        console.log("this.state.store_dir: ", this.state.store_dir != "");
+        console.log("this.formRef.current.checkValidity(): ", this.formRef.current.checkValidity());
+
+        console.log("result: ", (gameValid && gameNxValid && updateValid && dlcValid && dlcNxValid && cemuValid && this.state.lang != "" && this.state.store_dir != "" && this.formRef.current.checkValidity()));
+
         return (
             gameValid &&
             gameNxValid &&
@@ -125,6 +175,18 @@ class Settings extends React.Component {
                     });
                 }
             }
+            if (prevState.cemu_data_dir != this.state.cemu_data_dir) {
+                if (
+                    await pywebview.api.dir_exists({
+                        folder: this.state.cemu_data_dir,
+                        type: "cemu_data_dir"
+                    })
+                ) {
+                    this.setState({
+                        export_dir: this.state.cemu_data_dir + '/graphicPacks/BreathOfTheWild_BCML'
+                    });
+                }
+            }
             if (
                 prevState.game_dir != this.state.game_dir ||
                 prevState.game_dir_nx != this.state.game_dir_nx
@@ -139,7 +201,7 @@ class Settings extends React.Component {
             for (const key of Object.keys(this.state).filter(
                 k =>
                     k.includes("dir") &&
-                    !["cemu_dir", "store_dir", "export_dir"].includes(k) &&
+                    !["cemu_dir", "cemu_conf_dir", "cemu_data_dir", "store_dir", "export_dir"].includes(k) &&
                     prevState[k] != this.state[k] &&
                     !prevState[k]
             )) {
@@ -187,7 +249,28 @@ class Settings extends React.Component {
                 <h5>Game Folders</h5>
                 <Row>
                     <Col>
-                        <Form.Group controlId="cemu_dir">
+                        <Form.Group controlId="cemu_portable">
+                            <OverlayTrigger
+                                overlay={
+                                    <Tooltip>
+                                        Cemu is installed in a single directory.
+                                    </Tooltip>
+                                }
+                                placement={"right"}>
+                                <Form.Check
+                                    type="checkbox"
+                                    label="Use Single Cemu Folder / Portable"
+                                    checked={this.state.cemu_portable}
+                                    onChange={e =>
+                                        this.setState({
+                                            cemu_portable: e.target.checked
+                                        })
+                                    }
+                                />
+                            </OverlayTrigger>
+                        </Form.Group>
+
+                        <Form.Group controlId="cemu_dir" hidden={!this.state.cemu_portable}>
                             <Form.Label>Cemu Directory</Form.Label>
                             <FolderInput
                                 value={this.state.cemu_dir}
@@ -214,6 +297,96 @@ class Settings extends React.Component {
                             />
                             <Form.Control.Feedback type="invalid">
                                 A Cemu folder is required unless you check the no Cemu
+                                option
+                            </Form.Control.Feedback>
+                        </Form.Group>
+
+                        <Form.Group controlId="cemu_conf_dir" hidden={this.state.cemu_portable}>
+                            <Form.Label>Cemu Config Directory</Form.Label>
+                            <FolderInput
+                                value={this.state.cemu_conf_dir}
+                                disabled={!this.state.wiiu || this.state.no_cemu}
+                                onChange={this.handleChange}
+                                placeholder='Tip: folder should contain "settings.xml"'
+                                isValid={
+                                    this.state.cemu_conf_dir != "" || this.state.no_cemu
+                                }
+                                overlay={
+                                    <Tooltip>
+                                        {this.state.wiiu ? (
+                                            <>
+                                                (Optional) The directory where Cemu stores
+                                                it's configuration. Note that this <em>must</em>{" "}
+                                                be the folder that directly contains "settings.xml"
+                                            </>
+                                        ) : (
+                                            "Not applicable for Switch mode"
+                                        )}
+                                    </Tooltip>
+                                }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                A Cemu config folder is required unless you check the no Cemu
+                                option
+                            </Form.Control.Feedback>
+                        </Form.Group>
+
+                        <Form.Group controlId="cemu_data_dir" hidden={this.state.cemu_portable}>
+                            <Form.Label>Cemu Data Directory</Form.Label>
+                            <FolderInput
+                                value={this.state.cemu_data_dir}
+                                disabled={!this.state.wiiu || this.state.no_cemu}
+                                onChange={this.handleChange}
+                                placeholder='Tip: folder should contain "graphicPacks"'
+                                isValid={
+                                    this.state.cemu_data_dir != "" || this.state.no_cemu
+                                }
+                                overlay={
+                                    <Tooltip>
+                                        {this.state.wiiu ? (
+                                            <>
+                                                (Optional) The directory where Cemu stores
+                                                it's data. Note that this <em>must</em>{" "}
+                                                be the folder that directly contains "graphicPacks"
+                                            </>
+                                        ) : (
+                                            "Not applicable for Switch mode"
+                                        )}
+                                    </Tooltip>
+                                }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                A Cemu Data folder is required unless you check the no Cemu
+                                option
+                            </Form.Control.Feedback>
+                        </Form.Group>
+
+                        <Form.Group controlId="cemu_exe" hidden={this.state.cemu_portable}>
+                            <Form.Label>Cemu Executable File</Form.Label>
+                            <FileInput
+                                style={{ marginTop: '5px' }}
+                                value={this.state.cemu_exe}
+                                disabled={!this.state.wiiu || this.state.no_cemu}
+                                onChange={this.handleChange}
+                                placeholder='Tip: file should be "Cemu.exe" or similar'
+                                isValid={
+                                    this.state.cemu_exe != "" || this.state.no_cemu
+                                }
+                                overlay={
+                                    <Tooltip>
+                                        {this.state.wiiu ? (
+                                            <>
+                                                (Optional) The file used to start Cemu.
+                                                For example, on windows it's mostly named "Cemu.exe".
+                                            </>
+                                        ) : (
+                                            "Not applicable for Switch mode"
+                                        )}
+                                    </Tooltip>
+                                }
+                            />
+                            <Form.Control.Feedback type="invalid">
+                                A Cemu Executable file is required unless you check the no Cemu
                                 option
                             </Form.Control.Feedback>
                         </Form.Group>

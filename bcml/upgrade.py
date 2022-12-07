@@ -21,7 +21,7 @@ from bcml.util import RulesParser
 
 def convert_old_mods(source: Path = None):
     mod_dir = util.get_modpack_dir()
-    old_path = source or util.get_cemu_dir() / "graphicPacks" / "BCML"
+    old_path = source or util.get_cemu_data_dir() / "graphicPacks" / "BCML"
     print("Copying old mods...")
     shutil.rmtree(mod_dir, ignore_errors=True)
     shutil.copytree(old_path, mod_dir)
@@ -57,7 +57,8 @@ def convert_old_settings():
     update_dir = util.guess_update_dir(Path(mlc_dir), Path(game_dir))
     dlc_dir = util.guess_aoc_dir(Path(mlc_dir), Path(game_dir))
     settings = {
-        "cemu_dir": cemu_dir,
+        "cemu_data_dir": cemu_dir,
+        "cemu_conf_dir": cemu_dir,
         "game_dir": game_dir,
         "game_dir_nx": "",
         "load_reverse": old_settings["Settings"]["load_reverse"] == "True",

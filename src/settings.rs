@@ -35,7 +35,10 @@ impl std::fmt::Display for Language {
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash, Serialize, Deserialize)]
 pub struct Settings {
-    pub cemu_dir: PathBuf,
+    pub cemu_portable: bool,
+    pub cemu_conf_dir: PathBuf,
+    pub cemu_data_dir: PathBuf,
+    pub cemu_exe: PathBuf,
     pub game_dir: PathBuf,
     pub game_dir_nx: PathBuf,
     pub update_dir: PathBuf,
@@ -71,7 +74,10 @@ impl Default for Settings {
             changelog: true,
             wiiu: true,
             auto_gb: true,
-            cemu_dir: Default::default(),
+            cemu_conf_dir: Default::default(),
+            cemu_data_dir: Default::default(),
+            cemu_portable: true,
+            cemu_exe: Default::default(),
             dark_theme: Default::default(),
             dlc_dir: Default::default(),
             dlc_dir_nx: Default::default(),
@@ -145,7 +151,7 @@ impl Settings {
         };
         if dir.to_str().map(|d| d.is_empty()).unwrap_or_default() {
             if self.wiiu && !self.no_cemu {
-                Some(self.cemu_dir.join("graphicPacks/BreathOfTheWild_BCML"))
+                Some(self.cemu_data_dir.join("graphicPacks/BreathOfTheWild_BCML"))
             } else {
                 None
             }

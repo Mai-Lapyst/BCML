@@ -190,6 +190,7 @@ impl<'py, 'set> ModLinker<'py, 'set> {
         // to set up the output folder.
         if !(exists && is_link && should_be_link) {
             println!("Preparing output folder at {}", output.display());
+            println!("Use merged folder at {}", merged.display());
             if should_be_link {
                 println!(
                     "Attempting to link output folder at {} to merged folder",
